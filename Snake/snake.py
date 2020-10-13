@@ -4,24 +4,24 @@ import threading
 # ----- Traer High Scores -----
 from io import open
 
-try: #revisa si existe el archivo
+try:  # revisa si existe el archivo
     contador = open('highScore.txt', 'r', encoding="utf8")
     contador.close()
-except: #Si no existe el archivo lo crea
+except:  # Si no existe el archivo lo crea
     contador = open('highScore.txt', 'w+', encoding="utf8")
     contador.write('0')
     contador.close()
 
-
 # ----- Game instance -----
 pygame.init()
-
+timer = 0
 
 # ----- Colores -----
 WHITE = 255, 255, 255
 BLACK = 0, 0, 0
 RED = 255, 0, 0
 DARKBLUE = 20, 2, 161
+GREEN = 0, 255, 0
 
 
 # ----- Clases -----
@@ -34,6 +34,7 @@ class Lines:
         self.id = id
         pygame.draw.line(screen, DARKBLUE, (x, y), (x, y2), 10)
 
+
 class VLines:
     def __init__(self, x, x2, y, id):
         self.x = x
@@ -41,6 +42,7 @@ class VLines:
         self.y = y
         self.id = id
         pygame.draw.line(screen, DARKBLUE, (x, y), (x2, y), 10)
+
 
 class Snake:
     def __init__(self, x, y, wh):
@@ -55,14 +57,21 @@ class Coin:
         self.y = y
         self.wh = wh
 
+
+class Enemy:
+    def __init__(self, x, y, wh):
+        self.x = x
+        self.y = y
+        self.wh = wh
+
+
 # ----- Variables Globales -----
-contador = open('highScore.txt', 'r', encoding="utf8") #abre el archivo en modo lectura
+contador = open('highScore.txt', 'r', encoding="utf8")  # abre el archivo en modo lectura
 count = int(contador.read())
-contador.close() # cierra el archivo
+contador.close()  # cierra el archivo
 
 W = 800
 H = 1000
-
 
 HIGHSCORE = count
 count = 0
@@ -73,11 +82,11 @@ COIN_VALUE = 1000
 
 snakeArray = []
 coinArray = []
+enemyArray = []
 
 pygame.display.set_caption('Snake')
 screen = pygame.display.set_mode((W, H))
 clock = pygame.time.Clock()
-
 
 SNAKE_SIZE = 40
 snake_xImpulse = 0
@@ -88,16 +97,13 @@ gameOver = False
 vidas = 3
 dir = 'vertical'
 index = 0
-
+maxEnemy = 2
 
 changed = False
+
 # ----- Instancias -----
-header = Snake(W/2, W/2, SNAKE_SIZE)
+header = Snake(W / 2, W / 2, SNAKE_SIZE)
 snakeArray.append(header)
-
-
-
-
 
 
 # ----- Funciones -----
@@ -115,9 +121,11 @@ def SaveScore():
     count = 0
     contador.close()
 
+
 def GetHeaderPos():
     snake_head = snakeArray[len(snakeArray) - 1]
     return snake_head
+
 
 def Limites(derecha, izquierda, arriba, abajo):
     global impact
@@ -132,22 +140,32 @@ def Limites(derecha, izquierda, arriba, abajo):
         impact = True
 
 
-def RandomPoints():
+def RandomPoints(type):
     global coinArray
 
     xPoint = int(random.randrange(0, len(xCOINS)))
     yPoint = int(random.randrange(0, len(yCOINS)))
-    if len(coinArray) < 2:
-        coinArray.append(Coin(xCOINS[xPoint], yCOINS[yPoint], SNAKE_SIZE))
-    for coin in coinArray:
-        pygame.draw.rect(screen, RED, ((coin.x, coin.y, SNAKE_SIZE, SNAKE_SIZE)))
+    if type == "coin":
+        if len(coinArray) < 2:
+            coinArray.append(Coin(xCOINS[xPoint], yCOINS[yPoint], SNAKE_SIZE))
+        for coin in coinArray:
+            pygame.draw.rect(screen, RED, ((coin.x, coin.y, SNAKE_SIZE, SNAKE_SIZE)))
+    elif type == "enemy":
+        if len(enemyArray) < maxEnemy:
+            enemyArray.append(Enemy(xCOINS[xPoint], yCOINS[yPoint], SNAKE_SIZE))
+        for enemy in enemyArray:
+            pygame.draw.rect(screen, GREEN, ((enemy.x, enemy.y, SNAKE_SIZE, SNAKE_SIZE)))
+            for coin in coinArray:
+                if coin.x == enemy.x and coin.y == enemy.y:
+                    enemyArray.remove(enemy)
+
 
 def Movimiento():
     global impact
     global count
     global coinArray
     global snakeArray
-
+    global enemyArray
     for item in snakeArray:
         pygame.draw.rect(screen, WHITE, ((item.x, item.y, SNAKE_SIZE, SNAKE_SIZE)))
         for aItem in snakeArray:
@@ -155,22 +173,32 @@ def Movimiento():
                 if item.x == aItem.x and item.y == aItem.y:
                     impact = True
 
+        for enemy in enemyArray:
+            if item.x == enemy.x and item.y == enemy.y:
+                enemyArray = []
+                count -= COIN_VALUE
+                impact = True
+
         for c in coinArray:
             if c.x == item.x and c.y == item.y:
                 snakeArray.append(
 
-                    Snake(snakeArray[len(snakeArray) - 1].x + snake_xImpulse, snakeArray[len(snakeArray) - 1].y + snake_yImpulse, SNAKE_SIZE)
+                    Snake(snakeArray[len(snakeArray) - 1].x + snake_xImpulse,
+                          snakeArray[len(snakeArray) - 1].y + snake_yImpulse, SNAKE_SIZE)
 
                 )
+                enemyArray = []
                 coinArray.remove(c)
                 count += COIN_VALUE
 
     snakeArray.append(
 
-        Snake(snakeArray[len(snakeArray) - 1].x + snake_xImpulse, snakeArray[len(snakeArray) - 1].y + snake_yImpulse, SNAKE_SIZE)
+        Snake(snakeArray[len(snakeArray) - 1].x + snake_xImpulse, snakeArray[len(snakeArray) - 1].y + snake_yImpulse,
+              SNAKE_SIZE)
 
     )
     snakeArray.pop(0)
+
 
 def LifeControl():
     global gameOver
@@ -193,11 +221,13 @@ def DrawHighScore(x, y):
     img = font.render(scoreText, True, DARKBLUE)
     screen.blit(img, (x, y))
 
+
 def DrawScore(x, y):
     font = pygame.font.SysFont('MSGOTHIC.TTF', 36)
     scoreText = 'SCORE: ' + str(count)
     img = font.render(scoreText, True, DARKBLUE)
     screen.blit(img, (x, y))
+
 
 def Line():
     derecha = Lines(778, 100, 978, 'derecha')
@@ -215,11 +245,16 @@ def Juego():
     global gameOver
     global vidas
     global HIGHSCORE
+    global timer
+    global maxEnemy
+    global enemyArray
 
+    lastCount = 0
     vidas = 3
     limiter = 0
     gameOver = False
     while not gameOver:
+        timer += 1
         screen.fill(BLACK)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -249,20 +284,26 @@ def Juego():
         limiter = 0
 
         Movimiento()
-        RandomPoints()
+        RandomPoints("coin")
+        RandomPoints("enemy")
         LifeControl()
         campo = pygame.image.load(os.path.join('recursos/sprites', 'overlay.png')).convert_alpha()
         screen.blit(campo, (0, 0))
-        DrawHighScore(W/6, 50)
-        DrawScore(W/1.4, 50)
+        DrawHighScore(W / 6, 50)
+        DrawScore(W / 1.4, 50)
         Line()
+        if count == lastCount + 10000:
+            maxEnemy += 2
+            lastCount = count
 
         print(GetHeaderPos().x, ' ', GetHeaderPos().y)
         pygame.display.update()
         clock.tick(10)
     if count > HIGHSCORE:
         HIGHSCORE = count
+    enemyArray = []
     SaveScore()
+
 
 def HighScore():
     global changed
@@ -280,9 +321,8 @@ def HighScore():
         path = 'score' + '.jpg'
         fondo = pygame.image.load(os.path.join('recursos/sprites', 'scores.jpg')).convert_alpha()
         screen.blit(fondo, (0, 0))
-        DrawHighScore(W/2.7, H/2)
+        DrawHighScore(W / 2.7, H / 2)
         pygame.display.update()
-
 
 
 def MainMenu():
@@ -313,6 +353,7 @@ def MainMenu():
 
     pass
 
+
 def main():
     global index
     index = 1
@@ -325,6 +366,8 @@ def main():
         print('xy')
         HighScore()
     main()
+
+
 # ----- Main Scene -----
 if __name__ == '__main__':
     main()
