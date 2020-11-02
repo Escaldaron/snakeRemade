@@ -320,7 +320,7 @@ def Juego():
 
         # Actualizacion de pantalla
         pygame.display.update()
-        clock.tick(10)
+        clock.tick(15)
         
     if count > HIGHSCORE:
         HIGHSCORE = count
